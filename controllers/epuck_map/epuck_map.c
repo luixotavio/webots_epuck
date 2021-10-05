@@ -48,6 +48,15 @@ float convert_intensity_to_meters(float prox) {
   return dist;
 }
  
+void salvar_posicao_distancias(FILE *log, float x, float y, float angulo, float distancia[8]){
+    fprintf(log, "%f %f %f ", x, y, angulo);
+    for(int i = 0; i < 8; i++) {
+      fprintf(log, "%f ", distancia[i]);
+    }
+    fprintf(log, "\n");
+    fflush(log);
+}
+
 int main(int argc, char **argv) {
   FILE *log = fopen("log.csv", "w");
   if (!log)
@@ -88,15 +97,11 @@ int main(int argc, char **argv) {
     const double *position = wb_supervisor_field_get_sf_vec3f(robot_position);
     const double *rotation = wb_supervisor_field_get_sf_rotation(robot_rotation);
 
-    // SALVAR ARQUIVO CONTENDO EM CADA LINHA A POSIÇÃO DO ROBÔ E AS DISTÂNCIAS PARA OS OBSTÁCULOS
-    fprintf(log, "%f %f %f ", position[0], position[2], rotation[3]);
     for(int i = 0; i < 8; i++) {
       dist[i] = convert_intensity_to_meters(wb_distance_sensor_get_value(ps[i]));
-      fprintf(log, "%f ", dist[i]);
     }
-    fprintf(log, "\n");
-    fflush(log);
-    // SALVAR ARQUIVO CONTENDO EM CADA LINHA A POSIÇÃO DO ROBÔ E AS DISTÂNCIAS PARA OS OBSTÁCULOS
+
+    salvar_posicao_distancias(log, position[0], position[2], rotation[3], dist);
 
     if ( detect_obstacle_ahead(dist) )
     {
