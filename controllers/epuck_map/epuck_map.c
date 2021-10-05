@@ -2,6 +2,7 @@
 #include <webots/motor.h>
 #include <webots/distance_sensor.h>
 #include <webots/position_sensor.h>
+#include <webots/supervisor.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -28,7 +29,7 @@
 //       P6(40)           P1(320)
 //   P5(90)                   P2(270)
 //       P4(160)          P3(200)
-	
+
 bool detect_obstacle_ahead(float d[8]) {
   return ( (d[0] < RANGE_MAX) || 
            (d[1] < RANGE_MAX) || 
@@ -46,26 +47,11 @@ float convert_intensity_to_meters(float prox) {
     dist = RANGE_MAX;
   return dist;
 }
-
-float to_radians(float degrees) {
-  return degrees * M_PI / 180.0;
-}
-
-float to_degrees(float radians) {
-  return radians * 180.0 / M_PI;
-}
-
-float normalize_angle(float angle) {
-  const float result = fmod(angle, 2.0*M_PI);
-  if(result < 0.0) 
-    return result + 2.0*M_PI;
-  return result;
-}
-  
+ 
 int main(int argc, char **argv) {
   FILE *log = fopen("log.csv", "w");
   if (!log)
-    return 1;
+    exit(1);
     
   ////// EXERCICIO: CRIAR FUNÇÃO PARA SUBSTITUIR ESSE CODIGO USANDO STRUCT /////
   wb_robot_init();
@@ -86,29 +72,24 @@ int main(int argc, char **argv) {
     ps[i] = wb_robot_get_device(ps_id);
     wb_distance_sensor_enable(ps[i], TIME_STEP);
   }
+  WbNodeRef robot_node = wb_supervisor_node_get_from_def("EPUCK");
+  if (robot_node == NULL) {
+    fprintf(stderr, "No DEF EPUCK node found in the current world file\n");
+    exit(1);
+  }
+  WbFieldRef robot_position = wb_supervisor_node_get_field(robot_node, "translation");
+  WbFieldRef robot_rotation = wb_supervisor_node_get_field(robot_node, "rotation");
   ////// EXERCICIO: CRIAR FUNÇÃO PARA SUBSTITUIR ESSE CODIGO USANDO STRUCT /////
 
   float dist[8];
   float x = 0, y = 0, theta = 0;
   float left_steps_prev = 0, right_steps_prev = 0;
   while (wb_robot_step(TIME_STEP) != -1) {
-    // CALCULAR POSIÇÃO DO ROBO.
-    float left_steps = wb_position_sensor_get_value(left_encoder);
-    float right_steps = wb_position_sensor_get_value(right_encoder);
-    float left_steps_diff = left_steps * WHEEL_RADIUS - left_steps_prev; // Expressed in meters.
-    float right_steps_diff = right_steps * WHEEL_RADIUS - right_steps_prev;   // Expressed in meters.
-    float delta_theta = (right_steps_diff - left_steps_diff)/WHEEL_DISTANCE;   // Expressed in radians.
-    float delta_steps = (right_steps_diff + left_steps_diff)/2.0;        // Expressed in meters.
-    x += delta_steps * cos(theta + delta_theta/2.0);   // Expressed in meters.
-    y += delta_steps * sin(theta + delta_theta/2.0);   // Expressed in meters.
-    theta += delta_theta;    // Expressed in radians.
-    theta = normalize_angle(theta);
-    left_steps_prev = left_steps * WHEEL_RADIUS;     // Expressed in meters.
-    right_steps_prev = right_steps * WHEEL_RADIUS;    // Expressed in meters.
-    // CALCULAR POSIÇÃO DO ROBO.
+    const double *position = wb_supervisor_field_get_sf_vec3f(robot_position);
+    const double *rotation = wb_supervisor_field_get_sf_rotation(robot_rotation);
 
     // SALVAR ARQUIVO CONTENDO EM CADA LINHA A POSIÇÃO DO ROBÔ E AS DISTÂNCIAS PARA OS OBSTÁCULOS
-    fprintf(log, "%f %f %f ", x, y, theta);
+    fprintf(log, "%f %f %f ", position[0], position[2], rotation[3]);
     for(int i = 0; i < 8; i++) {
       dist[i] = convert_intensity_to_meters(wb_distance_sensor_get_value(ps[i]));
       fprintf(log, "%f ", dist[i]);
@@ -116,7 +97,7 @@ int main(int argc, char **argv) {
     fprintf(log, "\n");
     fflush(log);
     // SALVAR ARQUIVO CONTENDO EM CADA LINHA A POSIÇÃO DO ROBÔ E AS DISTÂNCIAS PARA OS OBSTÁCULOS
-    
+
     if ( detect_obstacle_ahead(dist) )
     {
       wb_motor_set_velocity(left_motor, 0.2 * MAX_SPEED);

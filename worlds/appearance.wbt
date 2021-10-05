@@ -1,6 +1,6 @@
 #VRML_SIM R2021b utf8
 WorldInfo {
-  basicTimeStep 16
+  basicTimeStep 64
   coordinateSystem "NUE"
 }
 Viewpoint {
@@ -14,8 +14,9 @@ TexturedBackgroundLight {
 Floor {
   size 1 1
 }
-E-puck {
+DEF EPUCK E-puck {
   controller "epuck_map"
+  supervisor TRUE
 }
 DEF BALL Solid {
   translation 0 0.1 -0.2
