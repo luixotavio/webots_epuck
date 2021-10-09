@@ -30,6 +30,53 @@
 //   P5(90)                   P2(270)
 //       P4(160)          P3(200)
 
+
+typedef struct {
+
+WbFieldRef pos;
+WbFieldRef rotat;
+WbDeviceTag left_motor;
+WbDeviceTag right_motor;  
+WbDeviceTag ps[8];
+
+}tbotspec;
+
+
+tbotspec robot_init() {
+
+
+tbotspec spec;
+
+wb_robot_init();
+  spec.left_motor = wb_robot_get_device("left wheel motor");
+  spec.right_motor = wb_robot_get_device("right wheel motor");
+  wb_motor_set_position(spec.left_motor, INFINITY);
+  wb_motor_set_position(spec.right_motor, INFINITY);
+  wb_motor_set_velocity(spec.left_motor, 0.1 * MAX_SPEED);
+  wb_motor_set_velocity(spec.right_motor, 0.1 * MAX_SPEED);
+  WbDeviceTag left_encoder = wb_robot_get_device("left wheel sensor");
+  WbDeviceTag right_encoder = wb_robot_get_device("right wheel sensor");
+  wb_position_sensor_enable(left_encoder, TIME_STEP);
+  wb_position_sensor_enable(right_encoder, TIME_STEP);
+
+  char ps_id[4];
+  for(int i = 0; i < 8; i++){
+    sprintf(ps_id, "ps%d", i);
+    spec.ps[i] = wb_robot_get_device(ps_id);
+    wb_distance_sensor_enable(spec.ps[i], TIME_STEP);
+  }
+  WbNodeRef robot_node = wb_supervisor_node_get_from_def("EPUCK");
+  if (robot_node == NULL) {
+    fprintf(stderr, "No DEF EPUCK node found in the current world file\n");
+    exit(1);
+  }
+  spec.pos = wb_supervisor_node_get_field(robot_node, "translation");
+  spec.rotat = wb_supervisor_node_get_field(robot_node, "rotation");
+
+
+  return spec;
+}
+
 bool detect_obstacle_ahead(float d[8]) {
   return ( (d[0] < RANGE_MAX) || 
            (d[1] < RANGE_MAX) || 
@@ -63,55 +110,33 @@ int main(int argc, char **argv) {
     exit(1);
     
   ////// EXERCICIO: CRIAR FUNÇÃO PARA SUBSTITUIR ESSE CODIGO USANDO STRUCT /////
-  wb_robot_init();
-  WbDeviceTag left_motor = wb_robot_get_device("left wheel motor");
-  WbDeviceTag right_motor = wb_robot_get_device("right wheel motor");
-  wb_motor_set_position(left_motor, INFINITY);
-  wb_motor_set_position(right_motor, INFINITY);
-  wb_motor_set_velocity(left_motor, 0.1 * MAX_SPEED);
-  wb_motor_set_velocity(right_motor, 0.1 * MAX_SPEED);
-  WbDeviceTag left_encoder = wb_robot_get_device("left wheel sensor");
-  WbDeviceTag right_encoder = wb_robot_get_device("right wheel sensor");
-  wb_position_sensor_enable(left_encoder, TIME_STEP);
-  wb_position_sensor_enable(right_encoder, TIME_STEP);
-  WbDeviceTag ps[8];
-  char ps_id[4];
-  for(int i = 0; i < 8; i++){
-    sprintf(ps_id, "ps%d", i);
-    ps[i] = wb_robot_get_device(ps_id);
-    wb_distance_sensor_enable(ps[i], TIME_STEP);
-  }
-  WbNodeRef robot_node = wb_supervisor_node_get_from_def("EPUCK");
-  if (robot_node == NULL) {
-    fprintf(stderr, "No DEF EPUCK node found in the current world file\n");
-    exit(1);
-  }
-  WbFieldRef robot_position = wb_supervisor_node_get_field(robot_node, "translation");
-  WbFieldRef robot_rotation = wb_supervisor_node_get_field(robot_node, "rotation");
+ 
   ////// EXERCICIO: CRIAR FUNÇÃO PARA SUBSTITUIR ESSE CODIGO USANDO STRUCT /////
 
+  tbotspec configu = robotinit();
+  
   float dist[8];
   float x = 0, y = 0, theta = 0;
   float left_steps_prev = 0, right_steps_prev = 0;
   while (wb_robot_step(TIME_STEP) != -1) {
-    const double *position = wb_supervisor_field_get_sf_vec3f(robot_position);
-    const double *rotation = wb_supervisor_field_get_sf_rotation(robot_rotation);
+    const double *position = wb_supervisor_field_get_sf_vec3f(configu.pos);
+    const double *rotation = wb_supervisor_field_get_sf_rotation(configu.rotat);
 
     for(int i = 0; i < 8; i++) {
-      dist[i] = convert_intensity_to_meters(wb_distance_sensor_get_value(ps[i]));
+      dist[i] = convert_intensity_to_meters(wb_distance_sensor_get_value(configu.ps[i]));
     }
 
     salvar_posicao_distancias(log, position[0], position[2], rotation[3], dist);
 
     if ( detect_obstacle_ahead(dist) )
     {
-      wb_motor_set_velocity(left_motor, 0.2 * MAX_SPEED);
-      wb_motor_set_velocity(right_motor, -0.2 * MAX_SPEED);
+      wb_motor_set_velocity(configu.left_motor, 0.2 * MAX_SPEED);
+      wb_motor_set_velocity(configu.right_motor, -0.2 * MAX_SPEED);
     }
     if ( !detect_obstacle_ahead(dist) )
     {
-      wb_motor_set_velocity(left_motor, 0.5 * MAX_SPEED);
-      wb_motor_set_velocity(right_motor, 0.5 * MAX_SPEED);
+      wb_motor_set_velocity(configu.left_motor, 0.5 * MAX_SPEED);
+      wb_motor_set_velocity(configu.right_motor, 0.5 * MAX_SPEED);
     }
   }
    
