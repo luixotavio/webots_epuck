@@ -42,7 +42,7 @@ WbDeviceTag ps[8];
 }tbotspec;
 
 
-tbotspec robot_init() {
+tbotspec botinit() {
 
 
 tbotspec spec;
@@ -113,7 +113,7 @@ int main(int argc, char **argv) {
  
   ////// EXERCICIO: CRIAR FUNÇÃO PARA SUBSTITUIR ESSE CODIGO USANDO STRUCT /////
 
-  tbotspec configu = robotinit();
+  tbotspec configu = botinit();
   
   float dist[8];
   float x = 0, y = 0, theta = 0;
